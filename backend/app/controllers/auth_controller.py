@@ -45,12 +45,20 @@ def register():
     """
     data = request.get_json()
     
-    # Validation
+    # 🔍 LOG POUR VOIR LES DONNEES
+    print("=" * 50)
+    print("📩 Données reçues du frontend:", data)
+    print("=" * 50)
+    
     if not data:
         return jsonify({'error': 'No data provided'}), 400
     
     errors = auth_validator.validate_register(data)
+    
+    # 🔍 LOG POUR VOIR LES ERREURS
     if errors:
+        print("❌ Erreurs de validation:", errors)
+        print("=" * 50)
         return jsonify({'errors': errors}), 422
     
     # Inscription

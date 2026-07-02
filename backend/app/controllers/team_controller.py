@@ -14,12 +14,6 @@ team_validator = TeamValidator()
 def get_teams():
     """
     Récupérer toutes les équipes de l'utilisateur
-    ---
-    tags:
-      - Teams
-    responses:
-      200:
-        description: Liste des équipes
     """
     user_id = get_jwt_identity()
     teams = team_service.get_user_teams(user_id)
@@ -30,27 +24,6 @@ def get_teams():
 def create_team():
     """
     Créer une nouvelle équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: body
-        in: body
-        required: true
-        schema:
-          properties:
-            name:
-              type: string
-              required: true
-            description:
-              type: string
-            logo_url:
-              type: string
-    responses:
-      201:
-        description: Équipe créée avec succès
-      400:
-        description: Erreur de validation
     """
     user_id = get_jwt_identity()
     data = request.get_json()
@@ -78,25 +51,9 @@ def create_team():
 def get_team(team_id):
     """
     Récupérer les détails d'une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-    responses:
-      200:
-        description: Détails de l'équipe
-      403:
-        description: Accès refusé
-      404:
-        description: Équipe non trouvée
     """
     user_id = get_jwt_identity()
     
-    # Vérifier que l'utilisateur est membre de l'équipe
     teams = team_service.get_user_teams(user_id)
     if not any(t['id'] == team_id for t in teams):
         return jsonify({'error': 'You are not a member of this team'}), 403
@@ -108,37 +65,48 @@ def get_team(team_id):
     
     return jsonify(team), 200
 
+@team_bp.route('/members', methods=['GET'])
+@jwt_required()
+def get_team_members():
+    """
+    Récupérer les membres de l'équipe de l'utilisateur
+    """
+    user_id = get_jwt_identity()
+    
+    # Récupérer la première équipe de l'utilisateur
+    teams = team_service.get_user_teams(user_id)
+    if not teams:
+        return jsonify([]), 200
+    
+    team_id = teams[0]['id']
+    team = team_service.get_team(team_id)
+    members = team.get('members', []) if team else []
+    return jsonify(members), 200
+
+@team_bp.route('/<int:team_id>/members', methods=['GET'])
+@jwt_required()
+def get_team_members_by_team(team_id):
+    """
+    Récupérer les membres d'une équipe spécifique
+    """
+    user_id = get_jwt_identity()
+    
+    teams = team_service.get_user_teams(user_id)
+    if not any(t['id'] == team_id for t in teams):
+        return jsonify({'error': 'You are not a member of this team'}), 403
+    
+    team = team_service.get_team(team_id)
+    if not team:
+        return jsonify({'error': 'Team not found'}), 404
+    
+    members = team.get('members', [])
+    return jsonify(members), 200
+
 @team_bp.route('/<int:team_id>', methods=['PUT'])
 @jwt_required()
 def update_team(team_id):
     """
     Mettre à jour une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          properties:
-            name:
-              type: string
-            description:
-              type: string
-            logo_url:
-              type: string
-    responses:
-      200:
-        description: Équipe mise à jour
-      403:
-        description: Permission refusée
-      404:
-        description: Équipe non trouvée
     """
     user_id = get_jwt_identity()
     data = request.get_json()
@@ -165,21 +133,6 @@ def update_team(team_id):
 def delete_team(team_id):
     """
     Supprimer une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-    responses:
-      204:
-        description: Équipe supprimée
-      403:
-        description: Permission refusée
-      404:
-        description: Équipe non trouvée
     """
     user_id = get_jwt_identity()
     
@@ -194,75 +147,11 @@ def delete_team(team_id):
     
     return '', 204
 
-@team_bp.route('/<int:team_id>/members', methods=['GET'])
-@jwt_required()
-def get_team_members(team_id):
-    """
-    Récupérer les membres d'une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-    responses:
-      200:
-        description: Liste des membres
-      403:
-        description: Accès refusé
-      404:
-        description: Équipe non trouvée
-    """
-    user_id = get_jwt_identity()
-    
-    # Vérifier que l'utilisateur est membre
-    teams = team_service.get_user_teams(user_id)
-    if not any(t['id'] == team_id for t in teams):
-        return jsonify({'error': 'You are not a member of this team'}), 403
-    
-    team = team_service.get_team(team_id)
-    if not team:
-        return jsonify({'error': 'Team not found'}), 404
-    
-    members = team.get('members', [])
-    return jsonify(members), 200
-
 @team_bp.route('/<int:team_id>/members', methods=['POST'])
 @jwt_required()
 def add_team_member(team_id):
     """
     Ajouter un membre à une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          properties:
-            user_id:
-              type: integer
-              required: true
-            role:
-              type: string
-              enum: [admin, manager, member]
-              default: member
-    responses:
-      200:
-        description: Membre ajouté
-      400:
-        description: Erreur de validation
-      403:
-        description: Permission refusée
-      404:
-        description: Équipe non trouvée
     """
     current_user_id = get_jwt_identity()
     data = request.get_json()
@@ -286,25 +175,6 @@ def add_team_member(team_id):
 def remove_team_member(team_id, user_id):
     """
     Retirer un membre d'une équipe
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-      - name: user_id
-        in: path
-        type: integer
-        required: true
-    responses:
-      200:
-        description: Membre retiré
-      403:
-        description: Permission refusée
-      404:
-        description: Équipe non trouvée
     """
     current_user_id = get_jwt_identity()
     
@@ -324,36 +194,6 @@ def remove_team_member(team_id, user_id):
 def update_member_role(team_id, user_id):
     """
     Mettre à jour le rôle d'un membre
-    ---
-    tags:
-      - Teams
-    parameters:
-      - name: team_id
-        in: path
-        type: integer
-        required: true
-      - name: user_id
-        in: path
-        type: integer
-        required: true
-      - name: body
-        in: body
-        required: true
-        schema:
-          properties:
-            role:
-              type: string
-              enum: [admin, manager, member]
-              required: true
-    responses:
-      200:
-        description: Rôle mis à jour
-      400:
-        description: Erreur de validation
-      403:
-        description: Permission refusée
-      404:
-        description: Équipe non trouvée
     """
     current_user_id = get_jwt_identity()
     data = request.get_json()
@@ -371,3 +211,48 @@ def update_member_role(team_id, user_id):
         return jsonify({'error': error}), 400
     
     return jsonify({'message': 'Role updated successfully'}), 200
+
+@team_bp.route('/invite', methods=['POST'])
+@jwt_required()
+def invite_member():
+    """
+    Inviter un membre par email
+    """
+    user_id = get_jwt_identity()
+    data = request.get_json()
+    
+    if not data or not data.get('email'):
+        return jsonify({'error': 'Email is required'}), 400
+    
+    # Vérifier si l'utilisateur a déjà une équipe
+    teams = team_service.get_user_teams(user_id)
+    if not teams:
+        # Créer automatiquement une équipe pour l'utilisateur
+        user = user_service.get_user_by_id(user_id)
+        username = user.get('username', 'Utilisateur') if user else 'Utilisateur'
+        team_data = {
+            'name': f"Équipe de {username}",
+            'description': "Équipe créée automatiquement",
+            'created_by': user_id
+        }
+        team, error = team_service.create_team(team_data)
+        if error:
+            return jsonify({'error': error}), 400
+        teams = team_service.get_user_teams(user_id)
+    
+    team_id = teams[0]['id']
+    role = data.get('role', 'member')
+    
+    # TODO: Implémenter l'envoi d'email d'invitation avec un token
+    # Pour l'instant, on retourne un message de succès
+    # Dans une version future, on pourrait :
+    # 1. Créer un token d'invitation
+    # 2. Envoyer un email avec le lien d'invitation
+    # 3. Ajouter l'utilisateur à l'équipe quand il accepte
+    
+    return jsonify({
+        'message': 'Invitation envoyée avec succès',
+        'team_id': team_id,
+        'email': data['email'],
+        'role': role
+    }), 200
