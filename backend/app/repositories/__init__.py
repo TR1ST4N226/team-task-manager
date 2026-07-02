@@ -1,0 +1,5 @@
+from app.repositories.user_repository import UserRepository
+from app.repositories.task_repository import TaskRepository
+from app.repositories.team_repository import TeamRepository
+from app.repositories.comment_repository import CommentRepository
+from app.repositories.notification_repository import NotificationRepository
